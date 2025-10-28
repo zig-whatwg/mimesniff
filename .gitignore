@@ -1,0 +1,41 @@
+# Zig build artifacts
+zig-cache/
+zig-out/
+.zig-cache/
+
+# Test executables (in root directory only)
+/test_main
+/test_child
+/test_child_manual
+/test_stdin
+/test_stdin2
+/test_*
+!test_summary.sh
+!test_consumer/
+
+# Generated code
+src_generated/
+test_consumer/src_generated/
+examples_out/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+*.bak
+*.bak2
+*.backup
+*.tmp
+
+# Editor directories
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+.beads/
+
+docs/
