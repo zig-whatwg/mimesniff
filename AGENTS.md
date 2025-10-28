@@ -282,6 +282,32 @@ When requirements are ambiguous, unclear, or could be interpreted multiple ways,
 
 **Location:** `skills/browser_benchmarking/`
 
+### 8. **code_quality_checklist** - Pre-Commit Requirements ⭐
+
+**ALWAYS ACTIVE** - MANDATORY before every git commit.
+
+**Core Principle:**
+NEVER commit code without completing ALL quality checks. No exceptions.
+
+**Provides:**
+- Pre-commit checklist (formatting, tests, build, review)
+- `zig fmt` enforcement (ALWAYS run before commit)
+- Test verification requirements
+- Git diff review process
+- Commit message standards
+- Common mistakes to avoid
+
+**Critical Rules:**
+1. ✅ **ALWAYS run `zig fmt` before committing**
+2. ✅ **ALWAYS run `zig build test` and verify all pass**
+3. ✅ **ALWAYS review `git diff --staged` before committing**
+4. ✅ **ALWAYS write meaningful commit messages**
+5. ✅ **NEVER commit debug code, TODOs, or secrets**
+
+**Zero Tolerance:** Unformatted code, failing tests, or code that doesn't compile.
+
+**Location:** `skills/code_quality_checklist/`
+
 ---
 
 ## Golden Rules
@@ -338,6 +364,7 @@ Infra is used heavily by other specs. Optimize for speed and low allocation. But
 5. **Verify** - No leaks, all tests pass
 6. **Document** - Inline docs with Infra spec references
 7. **Update CHANGELOG.md** - Document what was added
+8. **Pre-commit checks** - Run `zig fmt`, tests, review diff (see `code_quality_checklist` skill)
 
 ### Workflow (Bug Fixes)
 
@@ -346,6 +373,30 @@ Infra is used heavily by other specs. Optimize for speed and low allocation. But
 3. **Fix the bug** with minimal code change
 4. **Verify** all tests pass (including new test)
 5. **Update** CHANGELOG.md if user-visible
+6. **Pre-commit checks** - Run `zig fmt`, tests, review diff (see `code_quality_checklist` skill)
+
+### Workflow (Committing Code) ⭐
+
+**ALWAYS complete these steps before `git commit`:**
+
+```bash
+# 1. Format code
+zig fmt src/ benchmarks/ tests/ build.zig
+
+# 2. Run tests
+zig build test --summary all
+
+# 3. Verify build
+zig build
+
+# 4. Review changes
+git diff --staged
+
+# 5. Commit with meaningful message
+git commit -m "Clear description of what and why"
+```
+
+See `skills/code_quality_checklist/SKILL.md` for complete checklist.
 
 ---
 
@@ -443,6 +494,7 @@ pub const InfraError = error{
 ```
 skills/
 ├── communication_protocol/  # ⭐ Ask clarifying questions when unclear
+├── code_quality_checklist/  # ⭐ Pre-commit requirements (zig fmt, tests, review)
 ├── whatwg_compliance/       # Infra spec, type mappings, algorithms
 ├── zig_standards/           # Zig idioms, memory patterns, errors
 ├── testing_requirements/    # Test patterns, coverage, TDD
@@ -481,6 +533,9 @@ Root:
 
 ## Zero Tolerance For
 
+- **Committing without running `zig fmt`** ⭐ (see `code_quality_checklist` skill)
+- **Committing with failing tests** ⭐
+- **Committing code that doesn't compile** ⭐
 - Memory leaks (test with `std.testing.allocator`)
 - Breaking changes without major version bump
 - Untested code
@@ -496,11 +551,12 @@ Root:
 ## When in Doubt
 
 1. **ASK A CLARIFYING QUESTION** ⭐ - Don't assume, just ask (one question at a time)
-2. **Read the Infra spec section completely** - Context matters
-3. **Check the type mapping** - Use `whatwg_compliance` skill
-4. **Load relevant skills** - Get specialized guidance
-5. **Look at existing tests** - See patterns
-6. **Follow the Golden Rules** - Especially algorithm precision
+2. **RUN PRE-COMMIT CHECKS** ⭐ - Before every commit: `zig fmt`, tests, review diff
+3. **Read the Infra spec section completely** - Context matters
+4. **Check the type mapping** - Use `whatwg_compliance` skill
+5. **Load relevant skills** - Get specialized guidance
+6. **Look at existing tests** - See patterns
+7. **Follow the Golden Rules** - Especially algorithm precision
 
 ---
 
