@@ -518,10 +518,7 @@ Contributions welcome! Please ensure:
 
 ## License
 
-This work is dual-licensed:
-
-- **Code**: BSD 3-Clause License
-- **Specification**: Creative Commons Attribution 4.0 International License (WHATWG)
+MIT License
 
 See LICENSE file for details.
 
