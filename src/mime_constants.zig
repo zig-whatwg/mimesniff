@@ -200,7 +200,6 @@ pub const APPLICATION_X_RAR_COMPRESSED = mime_type.MimeType{
     .allocator = undefined,
 };
 
-
 // Common fallback types
 pub const TEXT_PLAIN = mime_type.MimeType{
     .type = &.{ 't', 'e', 'x', 't' },
