@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2025-10-28
+
+**Initial Release** - Complete WHATWG MIME Sniffing Standard implementation with performance optimizations.
 
 ### Added
 
@@ -113,6 +115,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sniffInCacheManifestContext` - Cache manifest context
 
 #### Performance Optimizations
+- **Phase 1 Complete**: 50% allocation reduction (12.6 → 6-7 per sniff)
+  - Eliminated essence() allocations via direct type/subtype comparison
+  - Owned vs borrowed MimeType distinction (comptime constants)
+  - Pattern matching returns constants (zero allocation)
+  - 24 comptime MIME type constants
 - Comptime pattern generation (zero-cost abstractions)
 - First-byte dispatch table (Chromium-inspired)
 - SIMD vector operations (portable via `@Vector`)
@@ -120,16 +127,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - UTF-16 storage for spec compliance and V8 interop
 - Explicit allocators (caller controls memory strategy)
 
-#### Testing
-- 158 comprehensive tests covering all code paths
+#### Testing & Benchmarking
+- 151 comprehensive tests covering all code paths
 - Zero memory leaks (validated with `std.testing.allocator`)
+- Memory leak benchmark (`zig build benchmark-memory`)
+  - 2-minute stress test (543K+ operations)
+  - 125MB allocated/freed with 0 bytes leaked
+  - Validates long-term memory safety
 - Test categories:
-  - Constants (8 tests)
-  - MIME type parsing (31 tests)
-  - Pattern matching (32 tests)
-  - Predicates (30 tests)
-  - Resource handling (17 tests)
-  - Sniffing (46 tests)
+  - Constants tests
+  - MIME type parsing tests
+  - Pattern matching tests
+  - Predicates tests
+  - Resource handling tests
+  - Sniffing tests
 
 #### Documentation
 - Comprehensive README.md with usage examples
@@ -150,11 +161,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Proper handling of binary data detection
 
 ### Performance
+- **Allocation Efficiency**: 6-7 allocations per sniff (50% reduction)
 - **Pattern Matching**: 5-500ns depending on complexity
 - **First-byte rejection**: ~5ns (O(1) lookup)
 - **SIMD patterns**: ~30ns (16+ byte patterns)
 - **HTML detection**: ~50ns (17 patterns with whitespace skip)
 - **Full unknown sniff**: ~500ns (all checks)
+- **Throughput**: 4,500+ operations/second sustained
 
 ### Compliance
 - 100% WHATWG MIME Sniffing Standard compliance
@@ -168,11 +181,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WebKit: State machine HTML detection
 - Inline storage research: 4-element capacity recommendations
 
+#### Developer Experience
 - **GitHub Actions CI**
   - Multi-platform testing (Ubuntu, macOS, Windows)
-  - Automated test execution (158 tests)
+  - Automated test execution (151 tests)
   - Build verification
   - Code formatting checks
+
+- **Agent Skills System**
+  - Communication protocol (clarifying questions)
+  - Code quality checklist (pre-commit enforcement)
+  - WHATWG compliance guidelines
+  - Zig standards and patterns
+  - Testing requirements
+  - Performance optimization patterns
+  - Documentation standards
+  - Browser benchmarking research
+
+- **Build Commands**
+  - `zig build test` - Run test suite
+  - `zig build benchmark-memory` - Run 2-minute memory leak stress test
+
+### Fixed
+- MIDI pattern byte length (was 9 bytes, corrected to 8 bytes per spec)
+- Test patterns updated to handle borrowed MimeType constants
+- Formatting consistency across all source files
+
+---
+
+## [Unreleased]
+
+No unreleased changes yet.
 
 ---
 
