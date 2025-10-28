@@ -60,6 +60,23 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
 
+    // Memory leak benchmark
+    const benchmark_mod = b.createModule(.{
+        .root_source_file = b.path("benchmarks/memory_leak_benchmark.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    benchmark_mod.addImport("mimesniff", mod);
+
+    const memory_benchmark = b.addExecutable(.{
+        .name = "memory_leak_benchmark",
+        .root_module = benchmark_mod,
+    });
+
+    const run_memory_benchmark = b.addRunArtifact(memory_benchmark);
+    const benchmark_memory_step = b.step("benchmark-memory", "Run memory leak benchmark (2+ minutes)");
+    benchmark_memory_step.dependOn(&run_memory_benchmark.step);
+
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
     // The Zig build system is entirely implemented in userland, which means

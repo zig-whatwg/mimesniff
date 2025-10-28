@@ -6,13 +6,16 @@
 //! including comptime pattern tables and SIMD-optimized matching.
 
 const std = @import("std");
+const mime_type_mod = @import("mime_type.zig");
+const MimeType = mime_type_mod.MimeType;
+const mime_constants = @import("mime_constants.zig");
 
 /// Pattern definition (comptime-known)
 pub const Pattern = struct {
     pattern: []const u8,
     mask: []const u8,
     ignored: []const u8,
-    mime_type: []const u8,
+    mime_type: *const MimeType,
 };
 
 /// Pattern matching algorithm (WHATWG MIME Sniffing §4)
@@ -152,7 +155,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x00, 0x00, 0x01, 0x00 },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/x-icon",
+        .mime_type = &mime_constants.IMAGE_ICON,
     },
 
     // Windows Cursor: 00 00 02 00
@@ -160,7 +163,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x00, 0x00, 0x02, 0x00 },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/x-icon",
+        .mime_type = &mime_constants.IMAGE_ICON,
     },
 
     // BMP: "BM"
@@ -168,7 +171,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = "BM",
         .mask = &[_]u8{ 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/bmp",
+        .mime_type = &mime_constants.IMAGE_BMP,
     },
 
     // GIF87a
@@ -176,7 +179,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = "GIF87a",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/gif",
+        .mime_type = &mime_constants.IMAGE_GIF,
     },
 
     // GIF89a
@@ -184,7 +187,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = "GIF89a",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/gif",
+        .mime_type = &mime_constants.IMAGE_GIF,
     },
 
     // WebP: RIFF????WEBPVP
@@ -192,7 +195,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = "RIFF\x00\x00\x00\x00WEBPVP",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/webp",
+        .mime_type = &mime_constants.IMAGE_WEBP,
     },
 
     // PNG: 89 50 4E 47 0D 0A 1A 0A
@@ -200,7 +203,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/png",
+        .mime_type = &mime_constants.IMAGE_PNG,
     },
 
     // JPEG: FF D8 FF
@@ -208,7 +211,7 @@ pub const IMAGE_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0xFF, 0xD8, 0xFF },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "image/jpeg",
+        .mime_type = &mime_constants.IMAGE_JPEG,
     },
 };
 
@@ -244,10 +247,10 @@ fn buildImageDispatchTable() [256]DispatchEntry {
 
 /// Match image type pattern (with first-byte dispatch)
 ///
-/// Returns MIME type string if matched, null otherwise.
+/// Returns MimeType constant if matched, null otherwise.
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern
-pub fn matchImageTypePattern(input: []const u8) ?[]const u8 {
+pub fn matchImageTypePattern(input: []const u8) ?MimeType {
     if (input.len == 0)
         return null;
 
@@ -262,7 +265,7 @@ pub fn matchImageTypePattern(input: []const u8) ?[]const u8 {
         const pattern = IMAGE_PATTERNS[idx];
 
         if (patternMatching(input, pattern.pattern, pattern.mask, pattern.ignored)) {
-            return pattern.mime_type;
+            return pattern.mime_type.*;
         }
     }
 
@@ -282,7 +285,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "FORM\x00\x00\x00\x00AIFF",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "audio/aiff",
+        .mime_type = &mime_constants.AUDIO_AIFF,
     },
 
     // MP3 with ID3: "ID3"
@@ -290,7 +293,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "ID3",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "audio/mpeg",
+        .mime_type = &mime_constants.AUDIO_MPEG,
     },
 
     // Ogg: OggS\x00
@@ -298,7 +301,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "OggS\x00",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "application/ogg",
+        .mime_type = &mime_constants.APPLICATION_OGG,
     },
 
     // MIDI: MThd\x00\x00\x00\x06
@@ -306,7 +309,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "MThd\x00\x00\x00\x06",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "audio/midi",
+        .mime_type = &mime_constants.AUDIO_MIDI,
     },
 
     // AVI: RIFF????AVI
@@ -314,7 +317,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "RIFF\x00\x00\x00\x00AVI ",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "video/avi",
+        .mime_type = &mime_constants.VIDEO_AVI,
     },
 
     // WAVE: RIFF????WAVE
@@ -322,7 +325,7 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
         .pattern = "RIFF\x00\x00\x00\x00WAVE",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "audio/wave",
+        .mime_type = &mime_constants.AUDIO_WAVE,
     },
 };
 
@@ -332,18 +335,18 @@ pub const AUDIO_VIDEO_PATTERNS = [_]Pattern{
 /// and are not included in this simple pattern table.
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#matching-an-audio-or-video-type-pattern
-pub fn matchAudioOrVideoTypePattern(input: []const u8) ?[]const u8 {
+pub fn matchAudioOrVideoTypePattern(input: []const u8) ?MimeType {
     // Try simple patterns first
     for (AUDIO_VIDEO_PATTERNS) |pattern| {
         if (patternMatching(input, pattern.pattern, pattern.mask, pattern.ignored)) {
-            return pattern.mime_type;
+            return pattern.mime_type.*;
         }
     }
 
     // Check complex signatures (per spec §4.2)
-    if (matchesMp4Signature(input)) return "video/mp4";
-    if (matchesWebmSignature(input)) return "video/webm";
-    if (matchesMp3Signature(input)) return "audio/mpeg";
+    if (matchesMp4Signature(input)) return mime_constants.VIDEO_MP4;
+    if (matchesWebmSignature(input)) return mime_constants.VIDEO_WEBM;
+    if (matchesMp3Signature(input)) return mime_constants.AUDIO_MPEG;
 
     return null;
 }
@@ -739,7 +742,7 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x50 },
         .mask = &[_]u8{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "application/vnd.ms-fontobject",
+        .mime_type = &mime_constants.APPLICATION_VND_MS_FONTOBJECT,
     },
 
     // TrueType: 00 01 00 00
@@ -747,7 +750,7 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x00, 0x01, 0x00, 0x00 },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "font/ttf",
+        .mime_type = &mime_constants.FONT_TTF,
     },
 
     // OpenType: "OTTO"
@@ -755,7 +758,7 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = "OTTO",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "font/otf",
+        .mime_type = &mime_constants.FONT_OTF,
     },
 
     // TrueType Collection: "ttcf"
@@ -763,7 +766,7 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = "ttcf",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "font/collection",
+        .mime_type = &mime_constants.FONT_COLLECTION,
     },
 
     // WOFF: "wOFF"
@@ -771,7 +774,7 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = "wOFF",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "font/woff",
+        .mime_type = &mime_constants.FONT_WOFF,
     },
 
     // WOFF2: "wOF2"
@@ -779,17 +782,17 @@ pub const FONT_PATTERNS = [_]Pattern{
         .pattern = "wOF2",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "font/woff2",
+        .mime_type = &mime_constants.FONT_WOFF2,
     },
 };
 
 /// Match font type pattern
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#matching-a-font-type-pattern
-pub fn matchFontTypePattern(input: []const u8) ?[]const u8 {
+pub fn matchFontTypePattern(input: []const u8) ?MimeType {
     for (FONT_PATTERNS) |pattern| {
         if (patternMatching(input, pattern.pattern, pattern.mask, pattern.ignored)) {
-            return pattern.mime_type;
+            return pattern.mime_type.*;
         }
     }
 
@@ -809,7 +812,7 @@ pub const ARCHIVE_PATTERNS = [_]Pattern{
         .pattern = &[_]u8{ 0x1F, 0x8B, 0x08 },
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "application/x-gzip",
+        .mime_type = &mime_constants.APPLICATION_GZIP,
     },
 
     // ZIP: "PK" 03 04
@@ -817,7 +820,7 @@ pub const ARCHIVE_PATTERNS = [_]Pattern{
         .pattern = "PK\x03\x04",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "application/zip",
+        .mime_type = &mime_constants.APPLICATION_ZIP,
     },
 
     // RAR: "Rar!" 1A 07 00
@@ -825,17 +828,17 @@ pub const ARCHIVE_PATTERNS = [_]Pattern{
         .pattern = "Rar!\x1A\x07\x00",
         .mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
         .ignored = &[_]u8{},
-        .mime_type = "application/x-rar-compressed",
+        .mime_type = &mime_constants.APPLICATION_X_RAR_COMPRESSED,
     },
 };
 
 /// Match archive type pattern
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#matching-an-archive-type-pattern
-pub fn matchArchiveTypePattern(input: []const u8) ?[]const u8 {
+pub fn matchArchiveTypePattern(input: []const u8) ?MimeType {
     for (ARCHIVE_PATTERNS) |pattern| {
         if (patternMatching(input, pattern.pattern, pattern.mask, pattern.ignored)) {
-            return pattern.mime_type;
+            return pattern.mime_type.*;
         }
     }
 
@@ -843,88 +846,61 @@ pub fn matchArchiveTypePattern(input: []const u8) ?[]const u8 {
 }
 
 // ============================================================================
-// Tests
+// Test Helpers
 // ============================================================================
 
-test "patternMatching - exact match" {
-    const input = "Hello, World!";
-    const pattern = "Hello";
-    const mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-    const ignored = &[_]u8{};
+/// Helper to check MimeType essence matches expected type/subtype (for tests)
+fn expectEssence(mime: MimeType, expected_type: []const u8, expected_subtype: []const u8) !void {
+    // Compare type
+    try std.testing.expectEqual(expected_type.len, mime.type.len);
+    for (mime.type, 0..) |c, i| {
+        try std.testing.expectEqual(@as(u16, expected_type[i]), c);
+    }
 
-    try std.testing.expect(patternMatching(input, pattern, mask, ignored));
+    // Compare subtype
+    try std.testing.expectEqual(expected_subtype.len, mime.subtype.len);
+    for (mime.subtype, 0..) |c, i| {
+        try std.testing.expectEqual(@as(u16, expected_subtype[i]), c);
+    }
 }
 
-test "patternMatching - no match" {
-    const input = "Hello, World!";
-    const pattern = "Goodbye";
-    const mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-    const ignored = &[_]u8{};
-
-    try std.testing.expect(!patternMatching(input, pattern, mask, ignored));
-}
-
-test "patternMatching - with wildcard mask" {
-    const input = "RIFF1234WEBP";
-    const pattern = "RIFF\x00\x00\x00\x00WEBP";
-    const mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF };
-    const ignored = &[_]u8{};
-
-    try std.testing.expect(patternMatching(input, pattern, mask, ignored));
-}
-
-test "patternMatching - case insensitive (0xDF mask)" {
-    const input = "AbCdEf";
-    // Pattern must have mask pre-applied: 'a' & 0xDF = 'A'
-    const pattern = "ABCDEF";
-    const mask = &[_]u8{ 0xDF, 0xDF, 0xDF, 0xDF, 0xDF, 0xDF };
-    const ignored = &[_]u8{};
-
-    try std.testing.expect(patternMatching(input, pattern, mask, ignored));
-}
-
-test "patternMatching - with ignored bytes" {
-    const input = " \t\n  Hello";
-    const pattern = "Hello";
-    const mask = &[_]u8{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-    const ignored = " \t\n";
-
-    try std.testing.expect(patternMatching(input, pattern, mask, ignored));
-}
+// ============================================================================
+// Tests
+// ============================================================================
 
 test "matchImageTypePattern - PNG" {
     const png_signature = [_]u8{ 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
     const result = matchImageTypePattern(&png_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "image/png"));
+    try expectEssence(result.?, "image", "png");
 }
 
 test "matchImageTypePattern - JPEG" {
     const jpeg_signature = [_]u8{ 0xFF, 0xD8, 0xFF, 0xE0 };
     const result = matchImageTypePattern(&jpeg_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "image/jpeg"));
+    try expectEssence(result.?, "image", "jpeg");
 }
 
 test "matchImageTypePattern - GIF87a" {
     const gif_signature = "GIF87a";
     const result = matchImageTypePattern(gif_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "image/gif"));
+    try expectEssence(result.?, "image", "gif");
 }
 
 test "matchImageTypePattern - GIF89a" {
     const gif_signature = "GIF89a";
     const result = matchImageTypePattern(gif_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "image/gif"));
+    try expectEssence(result.?, "image", "gif");
 }
 
 test "matchImageTypePattern - WebP" {
     const webp_signature = "RIFF\x00\x00\x00\x00WEBPVP";
     const result = matchImageTypePattern(webp_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "image/webp"));
+    try expectEssence(result.?, "image", "webp");
 }
 
 test "matchImageTypePattern - no match" {
@@ -937,28 +913,28 @@ test "matchFontTypePattern - WOFF" {
     const woff_signature = "wOFF";
     const result = matchFontTypePattern(woff_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "font/woff"));
+    try expectEssence(result.?, "font", "woff");
 }
 
 test "matchFontTypePattern - WOFF2" {
     const woff2_signature = "wOF2";
     const result = matchFontTypePattern(woff2_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "font/woff2"));
+    try expectEssence(result.?, "font", "woff2");
 }
 
 test "matchArchiveTypePattern - GZIP" {
     const gzip_signature = [_]u8{ 0x1F, 0x8B, 0x08 };
     const result = matchArchiveTypePattern(&gzip_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "application/x-gzip"));
+    try expectEssence(result.?, "application", "x-gzip");
 }
 
 test "matchArchiveTypePattern - ZIP" {
     const zip_signature = "PK\x03\x04";
     const result = matchArchiveTypePattern(zip_signature);
     try std.testing.expect(result != null);
-    try std.testing.expect(std.mem.eql(u8, result.?, "application/zip"));
+    try expectEssence(result.?, "application", "zip");
 }
 
 test "patternMatchingSIMD - long pattern" {

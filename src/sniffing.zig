@@ -13,6 +13,7 @@ const Resource = resource_mod.Resource;
 const predicates = @import("predicates.zig");
 const pattern_matching = @import("pattern_matching.zig");
 const constants = @import("constants.zig");
+const mime_constants = @import("mime_constants.zig");
 
 /// Sniff MIME type in a browsing context (WHATWG MIME Sniffing §8.1)
 ///
@@ -102,12 +103,8 @@ pub fn sniffMimeType(
     if (res.supplied_mime_type) |supplied| {
         if (predicates.isImageMimeType(&supplied)) {
             // Let matched-type be the result of executing the image type pattern matching algorithm
-            const matched_type_str = pattern_matching.matchImageTypePattern(resource_header);
-            if (matched_type_str) |type_str| {
-                const matched = try mime_type.parseMimeType(allocator, type_str);
-                if (matched) |mt| {
-                    return mt;
-                }
+            if (pattern_matching.matchImageTypePattern(resource_header)) |matched| {
+                return matched;
             }
             // If matched-type is undefined, fall through
         }
@@ -117,12 +114,8 @@ pub fn sniffMimeType(
     if (res.supplied_mime_type) |supplied| {
         if (predicates.isAudioOrVideoMimeType(&supplied)) {
             // Let matched-type be the result of executing the audio or video type pattern matching algorithm
-            const matched_type_str = pattern_matching.matchAudioOrVideoTypePattern(resource_header);
-            if (matched_type_str) |type_str| {
-                const matched = try mime_type.parseMimeType(allocator, type_str);
-                if (matched) |mt| {
-                    return mt;
-                }
+            if (pattern_matching.matchAudioOrVideoTypePattern(resource_header)) |matched| {
+                return matched;
             }
             // If matched-type is undefined, fall through
         }
@@ -214,48 +207,45 @@ pub fn identifyUnknownMimeType(
     const utf16be_pattern = "\xFE\xFF";
     const utf16be_mask = "\xFF\xFF";
     if (pattern_matching.patternMatching(resource_header, utf16be_pattern, utf16be_mask, no_ignored)) {
-        return try mime_type.parseMimeType(allocator, "text/plain");
+        return mime_constants.TEXT_PLAIN;
     }
 
     // Check for UTF-16LE BOM
     const utf16le_pattern = "\xFF\xFE";
     const utf16le_mask = "\xFF\xFF";
     if (pattern_matching.patternMatching(resource_header, utf16le_pattern, utf16le_mask, no_ignored)) {
-        return try mime_type.parseMimeType(allocator, "text/plain");
+        return mime_constants.TEXT_PLAIN;
     }
 
     // Check for UTF-8 BOM
     const utf8_pattern = "\xEF\xBB\xBF";
     const utf8_mask = "\xFF\xFF\xFF";
     if (pattern_matching.patternMatching(resource_header, utf8_pattern, utf8_mask, no_ignored)) {
-        return try mime_type.parseMimeType(allocator, "text/plain");
+        return mime_constants.TEXT_PLAIN;
     }
 
     // 3. Check for image types
-    const image_type = pattern_matching.matchImageTypePattern(resource_header);
-    if (image_type) |type_str| {
-        return try mime_type.parseMimeType(allocator, type_str);
+    if (pattern_matching.matchImageTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 4. Check for audio/video types
-    const av_type = pattern_matching.matchAudioOrVideoTypePattern(resource_header);
-    if (av_type) |type_str| {
-        return try mime_type.parseMimeType(allocator, type_str);
+    if (pattern_matching.matchAudioOrVideoTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 5. Check for archive types
-    const archive_type = pattern_matching.matchArchiveTypePattern(resource_header);
-    if (archive_type) |type_str| {
-        return try mime_type.parseMimeType(allocator, type_str);
+    if (pattern_matching.matchArchiveTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 6. If resource header contains no binary data bytes, return "text/plain"
     if (!containsBinaryDataBytes(resource_header)) {
-        return try mime_type.parseMimeType(allocator, "text/plain");
+        return mime_constants.TEXT_PLAIN;
     }
 
     // 7. Return "application/octet-stream"
-    return try mime_type.parseMimeType(allocator, "application/octet-stream");
+    return mime_constants.APPLICATION_OCTET_STREAM;
 }
 
 /// Distinguish if a resource is text or binary (WHATWG MIME Sniffing §7.2)
@@ -274,6 +264,7 @@ pub fn distinguishTextOrBinary(
     allocator: std.mem.Allocator,
     resource_header: []const u8,
 ) !?MimeType {
+    _ = allocator; // No longer needed - we return constants
     const length = resource_header.len;
 
     // 1. If length >= 2 and first 2 bytes are UTF-16BE or UTF-16LE BOM
@@ -281,7 +272,7 @@ pub fn distinguishTextOrBinary(
         if ((resource_header[0] == 0xFE and resource_header[1] == 0xFF) or
             (resource_header[0] == 0xFF and resource_header[1] == 0xFE))
         {
-            return try mime_type.parseMimeType(allocator, "text/plain");
+            return mime_constants.TEXT_PLAIN;
         }
     }
 
@@ -291,17 +282,17 @@ pub fn distinguishTextOrBinary(
             resource_header[1] == 0xBB and
             resource_header[2] == 0xBF)
         {
-            return try mime_type.parseMimeType(allocator, "text/plain");
+            return mime_constants.TEXT_PLAIN;
         }
     }
 
     // 3. If resource header contains no binary data bytes, return "text/plain"
     if (!containsBinaryDataBytes(resource_header)) {
-        return try mime_type.parseMimeType(allocator, "text/plain");
+        return mime_constants.TEXT_PLAIN;
     }
 
     // 4. Return "application/octet-stream"
-    return try mime_type.parseMimeType(allocator, "application/octet-stream");
+    return mime_constants.APPLICATION_OCTET_STREAM;
 }
 
 // ============================================================================
@@ -423,15 +414,10 @@ pub fn sniffInImageContext(
 
     // 2. Let image-type-matched be the result of executing the image type
     //    pattern matching algorithm with the resource header
-    const matched_type_str = pattern_matching.matchImageTypePattern(resource_header);
-
     // 3. If image-type-matched is not undefined, the computed MIME type is
     //    image-type-matched. Abort these steps.
-    if (matched_type_str) |type_str| {
-        const matched = try mime_type.parseMimeType(allocator, type_str);
-        if (matched) |mt| {
-            return mt;
-        }
+    if (pattern_matching.matchImageTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 4. The computed MIME type is the supplied MIME type
@@ -469,15 +455,10 @@ pub fn sniffInAudioOrVideoContext(
 
     // 2. Let audio-or-video-type-matched be the result of executing the
     //    audio or video type pattern matching algorithm
-    const matched_type_str = pattern_matching.matchAudioOrVideoTypePattern(resource_header);
-
     // 3. If audio-or-video-type-matched is not undefined, the computed MIME type
     //    is audio-or-video-type-matched. Abort these steps.
-    if (matched_type_str) |type_str| {
-        const matched = try mime_type.parseMimeType(allocator, type_str);
-        if (matched) |mt| {
-            return mt;
-        }
+    if (pattern_matching.matchAudioOrVideoTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 4. The computed MIME type is the supplied MIME type
@@ -515,15 +496,10 @@ pub fn sniffInFontContext(
 
     // 2. Let font-type-matched be the result of executing the font type
     //    pattern matching algorithm
-    const matched_type_str = pattern_matching.matchFontTypePattern(resource_header);
-
     // 3. If font-type-matched is not undefined, the computed MIME type is
     //    font-type-matched. Abort these steps.
-    if (matched_type_str) |type_str| {
-        const matched = try mime_type.parseMimeType(allocator, type_str);
-        if (matched) |mt| {
-            return mt;
-        }
+    if (pattern_matching.matchFontTypePattern(resource_header)) |matched| {
+        return matched;
     }
 
     // 4. The computed MIME type is the supplied MIME type
@@ -552,7 +528,7 @@ pub fn sniffInPluginContext(
     // 1. If the supplied MIME type is undefined, the computed MIME type is
     //    "application/octet-stream".
     if (supplied_mime_type == null) {
-        return try mime_type.parseMimeType(allocator, "application/octet-stream");
+        return mime_constants.APPLICATION_OCTET_STREAM;
     }
 
     // 2. The computed MIME type is the supplied MIME type
@@ -762,10 +738,7 @@ test "identifyUnknownMimeType - text/plain for no binary data" {
     const computed = try identifyUnknownMimeType(allocator, resource_header, false);
 
     if (computed) |mt| {
-        var mutable_mt = mt;
-        defer mutable_mt.deinit();
-
-        const essence = try getEssence(allocator, &mutable_mt);
+        const essence = try getEssence(allocator, &mt);
         defer allocator.free(essence);
 
         try std.testing.expectEqualStrings("text/plain", essence);
@@ -781,10 +754,7 @@ test "identifyUnknownMimeType - application/octet-stream for binary data" {
     const computed = try identifyUnknownMimeType(allocator, resource_header, false);
 
     if (computed) |mt| {
-        var mutable_mt = mt;
-        defer mutable_mt.deinit();
-
-        const essence = try getEssence(allocator, &mutable_mt);
+        const essence = try getEssence(allocator, &mt);
         defer allocator.free(essence);
 
         try std.testing.expectEqualStrings("application/octet-stream", essence);
