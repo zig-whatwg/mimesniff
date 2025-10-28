@@ -25,11 +25,6 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Checkout infra dependency
-        run: |
-          git clone https://github.com/zig-whatwg/infra.git ../infra || true
-        shell: bash
-
       - name: Run tests
         run: zig build test
 

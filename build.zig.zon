@@ -33,7 +33,8 @@
     // internet connectivity.
     .dependencies = .{
         .infra = .{
-            .path = "../infra",
+            .url = "https://github.com/zig-whatwg/infra/archive/refs/tags/v0.1.0.tar.gz",
+            .hash = "122055f2238eb11e57bb6d6559f952fe447cbb12fe24a8f08b8ec961a6cb55ba126a",
         },
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
