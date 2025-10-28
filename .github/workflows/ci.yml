@@ -28,9 +28,6 @@ jobs:
       - name: Run tests
         run: zig build test
 
-      - name: Build executable
-        run: zig build
-
   fmt:
     name: Format check
     runs-on: ubuntu-latest
