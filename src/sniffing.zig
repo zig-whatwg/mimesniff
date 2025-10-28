@@ -74,12 +74,9 @@ pub fn sniffMimeType(
     }
 
     if (res.supplied_mime_type) |supplied| {
-        const essence = try getEssence(allocator, &supplied);
-        defer allocator.free(essence);
-
-        if (std.mem.eql(u8, essence, "unknown/unknown") or
-            std.mem.eql(u8, essence, "application/unknown") or
-            std.mem.eql(u8, essence, "*/*"))
+        if (essenceEquals(&supplied, "unknown", "unknown") or
+            essenceEquals(&supplied, "application", "unknown") or
+            essenceEquals(&supplied, "*", "*"))
         {
             const sniff_scriptable = !res.no_sniff;
             return try identifyUnknownMimeType(allocator, resource_header, sniff_scriptable);
@@ -325,6 +322,24 @@ fn containsBinaryDataBytes(data: []const u8) bool {
     return false;
 }
 
+/// Check if UTF-16 string equals ASCII string (no allocation)
+inline fn stringEqualsAscii(utf16_str: []const u16, ascii_str: []const u8) bool {
+    if (utf16_str.len != ascii_str.len)
+        return false;
+
+    for (utf16_str, 0..) |c, i| {
+        if (c != ascii_str[i])
+            return false;
+    }
+
+    return true;
+}
+
+/// Check if MIME type essence equals given type and subtype (no allocation)
+inline fn essenceEquals(mt: *const MimeType, type_str: []const u8, subtype_str: []const u8) bool {
+    return stringEqualsAscii(mt.type, type_str) and stringEqualsAscii(mt.subtype, subtype_str);
+}
+
 /// Get the essence of a MIME type (as UTF-8 bytes)
 fn getEssence(allocator: std.mem.Allocator, mt: *const MimeType) ![]const u8 {
     const infra = @import("infra");
@@ -372,6 +387,7 @@ fn copyMimeType(allocator: std.mem.Allocator, mt: MimeType) !MimeType {
         .type = type_copy,
         .subtype = subtype_copy,
         .parameters = params_copy,
+        .owned = true,
         .allocator = allocator,
     };
 }

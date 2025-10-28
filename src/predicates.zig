@@ -33,9 +33,7 @@ pub fn isAudioOrVideoMimeType(mt: *const MimeType) bool {
         return true;
 
     // Check if essence is "application/ogg"
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-    return std.mem.eql(u8, essence, "application/ogg");
+    return essenceEquals(mt, "application", "ogg");
 }
 
 /// Check if MIME type is a font MIME type
@@ -51,21 +49,21 @@ pub fn isFontMimeType(mt: *const MimeType) bool {
         return true;
 
     // Check if essence matches font essence list
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
+    if (!stringEqualsAscii(mt.type, "application"))
+        return false;
 
-    const font_essences = [_][]const u8{
-        "application/font-cff",
-        "application/font-otf",
-        "application/font-sfnt",
-        "application/font-ttf",
-        "application/font-woff",
-        "application/vnd.ms-fontobject",
-        "application/vnd.ms-opentype",
+    const font_subtypes = [_][]const u8{
+        "font-cff",
+        "font-otf",
+        "font-sfnt",
+        "font-ttf",
+        "font-woff",
+        "vnd.ms-fontobject",
+        "vnd.ms-opentype",
     };
 
-    for (font_essences) |font_essence| {
-        if (std.mem.eql(u8, essence, font_essence))
+    for (font_subtypes) |subtype| {
+        if (stringEqualsAscii(mt.subtype, subtype))
             return true;
     }
 
@@ -80,16 +78,11 @@ pub fn isFontMimeType(mt: *const MimeType) bool {
 /// Spec: https://mimesniff.spec.whatwg.org/#zip-based-mime-type
 pub fn isZipBasedMimeType(mt: *const MimeType) bool {
     // Check if subtype ends with "+zip"
-    const subtype_utf8 = infra.bytes.isomorphicEncode(mt.allocator, mt.subtype) catch return false;
-    defer mt.allocator.free(subtype_utf8);
-
-    if (std.mem.endsWith(u8, subtype_utf8, "+zip"))
+    if (endsWithAscii(mt.subtype, "+zip"))
         return true;
 
     // Check if essence is "application/zip"
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-    return std.mem.eql(u8, essence, "application/zip");
+    return essenceEquals(mt, "application", "zip");
 }
 
 /// Check if MIME type is an archive MIME type
@@ -99,17 +92,17 @@ pub fn isZipBasedMimeType(mt: *const MimeType) bool {
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#archive-mime-type
 pub fn isArchiveMimeType(mt: *const MimeType) bool {
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
+    if (!stringEqualsAscii(mt.type, "application"))
+        return false;
 
-    const archive_essences = [_][]const u8{
-        "application/x-rar-compressed",
-        "application/zip",
-        "application/x-gzip",
+    const archive_subtypes = [_][]const u8{
+        "x-rar-compressed",
+        "zip",
+        "x-gzip",
     };
 
-    for (archive_essences) |archive_essence| {
-        if (std.mem.eql(u8, essence, archive_essence))
+    for (archive_subtypes) |subtype| {
+        if (stringEqualsAscii(mt.subtype, subtype))
             return true;
     }
 
@@ -124,18 +117,11 @@ pub fn isArchiveMimeType(mt: *const MimeType) bool {
 /// Spec: https://mimesniff.spec.whatwg.org/#xml-mime-type
 pub fn isXmlMimeType(mt: *const MimeType) bool {
     // Check if subtype ends with "+xml"
-    const subtype_utf8 = infra.bytes.isomorphicEncode(mt.allocator, mt.subtype) catch return false;
-    defer mt.allocator.free(subtype_utf8);
-
-    if (std.mem.endsWith(u8, subtype_utf8, "+xml"))
+    if (endsWithAscii(mt.subtype, "+xml"))
         return true;
 
     // Check if essence is "text/xml" or "application/xml"
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-
-    return std.mem.eql(u8, essence, "text/xml") or
-        std.mem.eql(u8, essence, "application/xml");
+    return essenceEquals(mt, "text", "xml") or essenceEquals(mt, "application", "xml");
 }
 
 /// Check if MIME type is an HTML MIME type
@@ -144,9 +130,7 @@ pub fn isXmlMimeType(mt: *const MimeType) bool {
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#html-mime-type
 pub fn isHtmlMimeType(mt: *const MimeType) bool {
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-    return std.mem.eql(u8, essence, "text/html");
+    return essenceEquals(mt, "text", "html");
 }
 
 /// Check if MIME type is a scriptable MIME type
@@ -159,9 +143,7 @@ pub fn isScriptableMimeType(mt: *const MimeType) bool {
     if (isXmlMimeType(mt) or isHtmlMimeType(mt))
         return true;
 
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-    return std.mem.eql(u8, essence, "application/pdf");
+    return essenceEquals(mt, "application", "pdf");
 }
 
 /// Check if MIME type is a JavaScript MIME type
@@ -171,9 +153,32 @@ pub fn isScriptableMimeType(mt: *const MimeType) bool {
 ///
 /// Spec: https://mimesniff.spec.whatwg.org/#javascript-mime-type
 pub fn isJavaScriptMimeType(mt: *const MimeType) bool {
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-    return isJavaScriptMimeTypeEssenceMatch(essence);
+    // Check all JavaScript MIME type essences
+    const js_essences = [_]struct { type: []const u8, subtype: []const u8 }{
+        .{ .type = "application", .subtype = "ecmascript" },
+        .{ .type = "application", .subtype = "javascript" },
+        .{ .type = "application", .subtype = "x-ecmascript" },
+        .{ .type = "application", .subtype = "x-javascript" },
+        .{ .type = "text", .subtype = "ecmascript" },
+        .{ .type = "text", .subtype = "javascript" },
+        .{ .type = "text", .subtype = "javascript1.0" },
+        .{ .type = "text", .subtype = "javascript1.1" },
+        .{ .type = "text", .subtype = "javascript1.2" },
+        .{ .type = "text", .subtype = "javascript1.3" },
+        .{ .type = "text", .subtype = "javascript1.4" },
+        .{ .type = "text", .subtype = "javascript1.5" },
+        .{ .type = "text", .subtype = "jscript" },
+        .{ .type = "text", .subtype = "livescript" },
+        .{ .type = "text", .subtype = "x-ecmascript" },
+        .{ .type = "text", .subtype = "x-javascript" },
+    };
+
+    for (js_essences) |js| {
+        if (essenceEquals(mt, js.type, js.subtype))
+            return true;
+    }
+
+    return false;
 }
 
 /// Check if string is a JavaScript MIME type essence match
@@ -218,18 +223,11 @@ pub fn isJavaScriptMimeTypeEssenceMatch(string: []const u8) bool {
 /// Spec: https://mimesniff.spec.whatwg.org/#json-mime-type
 pub fn isJsonMimeType(mt: *const MimeType) bool {
     // Check if subtype ends with "+json"
-    const subtype_utf8 = infra.bytes.isomorphicEncode(mt.allocator, mt.subtype) catch return false;
-    defer mt.allocator.free(subtype_utf8);
-
-    if (std.mem.endsWith(u8, subtype_utf8, "+json"))
+    if (endsWithAscii(mt.subtype, "+json"))
         return true;
 
     // Check if essence is "application/json" or "text/json"
-    const essence = getEssence(mt) catch return false;
-    defer mt.allocator.free(essence);
-
-    return std.mem.eql(u8, essence, "application/json") or
-        std.mem.eql(u8, essence, "text/json");
+    return essenceEquals(mt, "application", "json") or essenceEquals(mt, "text", "json");
 }
 
 // ============================================================================
@@ -247,6 +245,30 @@ fn stringEqualsAscii(utf16_str: infra.String, ascii_str: []const u8) bool {
     }
 
     return true;
+}
+
+/// Check if UTF-16 string ends with ASCII suffix (no allocation)
+inline fn endsWithAscii(utf16_str: infra.String, ascii_suffix: []const u8) bool {
+    if (ascii_suffix.len > utf16_str.len)
+        return false;
+
+    const start_idx = utf16_str.len - ascii_suffix.len;
+    for (ascii_suffix, 0..) |c, i| {
+        if (utf16_str[start_idx + i] != c)
+            return false;
+    }
+
+    return true;
+}
+
+/// Check if MIME type essence equals given type and subtype (no allocation)
+///
+/// This is an optimized version that compares type and subtype directly
+/// without allocating memory for the concatenated essence string.
+///
+/// Spec: https://mimesniff.spec.whatwg.org/#mime-type-essence
+inline fn essenceEquals(mt: *const MimeType, type_str: []const u8, subtype_str: []const u8) bool {
+    return stringEqualsAscii(mt.type, type_str) and stringEqualsAscii(mt.subtype, subtype_str);
 }
 
 /// Get the essence of a MIME type (as UTF-8 bytes)

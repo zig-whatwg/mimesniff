@@ -27,21 +27,27 @@ pub const MimeType = struct {
     /// Parameters (e.g., {"charset": "utf-8"}) - ordered, UTF-16 keys/values
     parameters: infra.OrderedMap(infra.String, infra.String),
 
-    /// Allocator used for all allocations
+    /// Whether this MimeType owns its data (true = allocated, false = borrowed/comptime)
+    owned: bool,
+
+    /// Allocator used for all allocations (only used if owned == true)
     allocator: std.mem.Allocator,
 
-    /// Initialize empty MIME type
+    /// Initialize empty MIME type (owned)
     pub fn init(allocator: std.mem.Allocator) MimeType {
         return .{
             .type = &[_]u16{},
             .subtype = &[_]u16{},
             .parameters = infra.OrderedMap(infra.String, infra.String).init(allocator),
+            .owned = true,
             .allocator = allocator,
         };
     }
 
-    /// Free all allocated memory
+    /// Free all allocated memory (only if owned)
     pub fn deinit(self: *MimeType) void {
+        if (!self.owned) return; // Don't free borrowed/comptime data
+
         self.allocator.free(self.type);
         self.allocator.free(self.subtype);
 
